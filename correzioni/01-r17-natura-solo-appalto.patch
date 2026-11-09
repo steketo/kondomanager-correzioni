@@ -1,0 +1,66 @@
+# R17 | Toto — la natura del percipiente si chiede solo dove cambia il codice tributo.
+# Rilievo: R17 di kondomanager/test-generale/RILIEVI.md; issue #60 a monte (vince844/kondomanager-free).
+# Che cosa cambia: guardiaNaturaPercipienteMancante() di StoreFatturaRequest e UpdateFatturaRequest vuole la natura
+# del percipiente (o la conferma dati_extra.fiscal.conferma_codice_tributo_mancante) per ogni fornitore con
+# tipo_ritenuta; ora la vuole solo per l'appalto al 4%, dove la natura decide fra 1019 e 1020
+# (TipoRitenuta::dipendeDallaNatura()). Lo stesso confronto sta nell'avviso del modulo, codiceTributoIndeterminabile
+# di FatturaRegisterNew.vue e FatturaRegisterEdit.vue.
+# Perché: per gli altri fornitori il codice tributo è fisso e GeneraDelegheF24Action e ChiedeLaNaturaDelPercipiente
+# fanno già questa distinzione; la richiesta no, e bloccava la registrazione chiedendo una conferma inutile.
+# Non cambia: ritenuta_details.codice_tributo resta nullo senza natura (RitenutaService); l'F24 lo ricava dal regime.
+diff --git a/app/Http/Requests/Gestionale/Movimenti/StoreFatturaRequest.php b/app/Http/Requests/Gestionale/Movimenti/StoreFatturaRequest.php
+index ce55bc0e..ee9222c5 100644
+--- a/app/Http/Requests/Gestionale/Movimenti/StoreFatturaRequest.php
++++ b/app/Http/Requests/Gestionale/Movimenti/StoreFatturaRequest.php
+@@ -476,6 +476,10 @@ private function guardiaNaturaPercipienteMancante($validator): void
+             return;
+         }
+ 
++        if (! $fornitore->tipo_ritenuta->dipendeDallaNatura()) {
++            return; // codice tributo fisso: la natura del percipiente non lo cambia
++        }
++
+         if ($fornitore->natura_percipiente || $fornitore->codice_tributo) {
+             return; // il regime nuovo la risolve da sé, o c'è un override legacy esplicito
+         }
+diff --git a/app/Http/Requests/Gestionale/Movimenti/UpdateFatturaRequest.php b/app/Http/Requests/Gestionale/Movimenti/UpdateFatturaRequest.php
+index 0cea91d4..009c5ed5 100644
+--- a/app/Http/Requests/Gestionale/Movimenti/UpdateFatturaRequest.php
++++ b/app/Http/Requests/Gestionale/Movimenti/UpdateFatturaRequest.php
+@@ -291,6 +291,10 @@ private function guardiaNaturaPercipienteMancante($validator): void
+             return;
+         }
+ 
++        if (! $fornitore->tipo_ritenuta->dipendeDallaNatura()) {
++            return; // codice tributo fisso: la natura del percipiente non lo cambia
++        }
++
+         if ($fornitore->natura_percipiente || $fornitore->codice_tributo) {
+             return;
+         }
+diff --git a/resources/js/pages/gestionale/movimenti/fatture/FatturaRegisterEdit.vue b/resources/js/pages/gestionale/movimenti/fatture/FatturaRegisterEdit.vue
+index 34eac94d..dd21a589 100644
+--- a/resources/js/pages/gestionale/movimenti/fatture/FatturaRegisterEdit.vue
++++ b/resources/js/pages/gestionale/movimenti/fatture/FatturaRegisterEdit.vue
+@@ -298,7 +298,7 @@ const applicaRitenutaEffective = computed<boolean>({
+ const codiceTributoIndeterminabile = computed(() =>
+     fornitoreRitenutaAttiva.value
+     && applicaRitenutaEffective.value
+-    && !!selectedFornitore.value?.tipo_ritenuta
++    && selectedFornitore.value?.tipo_ritenuta === 'appalto_4'
+     && !selectedFornitore.value?.natura_percipiente
+     && !selectedFornitore.value?.codice_tributo
+ );
+diff --git a/resources/js/pages/gestionale/movimenti/fatture/FatturaRegisterNew.vue b/resources/js/pages/gestionale/movimenti/fatture/FatturaRegisterNew.vue
+index 916dc66c..a5ec38ad 100644
+--- a/resources/js/pages/gestionale/movimenti/fatture/FatturaRegisterNew.vue
++++ b/resources/js/pages/gestionale/movimenti/fatture/FatturaRegisterNew.vue
+@@ -984,7 +984,7 @@ const applicaRitenutaEffective = computed<boolean>({
+ const codiceTributoIndeterminabile = computed(() =>
+     fornitoreRitenutaAttiva.value
+     && applicaRitenutaEffective.value
+-    && !!selectedFornitore.value?.tipo_ritenuta
++    && selectedFornitore.value?.tipo_ritenuta === 'appalto_4'
+     && !selectedFornitore.value?.natura_percipiente
+     && !selectedFornitore.value?.codice_tributo
+ );

@@ -1,0 +1,4 @@
+sorgente/.git
+.costruzione.log
+__pycache__
+test_*.py
